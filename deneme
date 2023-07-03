@@ -1,0 +1,227 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using System.IO;
+
+public class nemgrafik : MonoBehaviour
+{
+    public Text uyarıyazi , tarihyazi , nemadresigiris;
+    public GameObject liste , circle , yol , uyarılarr , tarihliste , sayilar , tarihler , kaydetcanvas , uyarilarim , uyarilistesi;
+    public Button solabuton , sagabuton , yukaributon , asagibuton , sicak;
+    GameObject uyarılar , parcalar;
+    RectTransform uyarılar_rt;
+    float erkan;
+    float x=-7.5f , yollarx = 7 , deneme , referans = 0 , referans2 = 0 , derece , sinüs , hipotenüs , ilk;
+    int sayi = 0 , yereltarih , endIndex;
+    List<int> degerler = new List<int>();
+    List<string> tarih = new List<string>();
+    public bool veriTabaniVarmi = false, Yenile=false; // Veri varmı kontrol etmek ve veri yoksa veri gelene kadar istek yollamak için değişkenler
+    public string jsonURL , nemadresi , path; //JSON verilerini çekeceğimiz sitenin değişkeni
+    [System.Obsolete] // jsonDataClass a erişebilmemizi sağlıyor.
+
+    void Start()
+    {
+        erkan = (float)Screen.height/1000.0f;
+        jsonURL = "https://api.thingspeak.com/channels/" + "1694440" + "/fields/1.json"; // JSON verilerinin bulunduğu adres
+        StartCoroutine(getData()); // Veriyi çekmek için kullandığımız Coroutine fonksiyonu
+    }
+
+    [System.Obsolete]// jsonDataClass a erişebilmemizi sağlıyor.
+    private void Update()
+    {
+        /* Eğer veriyi çekemediysek yeniden veriyi çekmemizi sağlıyor. */
+        if (Yenile)
+        {
+            StartCoroutine(getData());
+            Yenile = false;
+        }
+    }
+
+    [System.Obsolete] // jsonDataClass a erişebilmemizi sağlıyor.
+    IEnumerator getData()
+    {
+        Debug.Log("Bekleyin"); 
+        WWW _www = new WWW(jsonURL); // WWW değişkeni oluşturuyoruz ve json dosyamızı çekiyoruz.
+        yield return _www; // Çektiğimiz veriyi döndürüyoruz.
+        if (_www.error == null) // Hata almazsak
+        {
+            processJsonData(_www.text); // Veriyi çekmek için yolluyoruz.
+            veriTabaniVarmi = true; // Verinin çekildiğini doğruluyoruz.
+        }
+        else
+        {
+            Debug.Log("Hata"); // Veri çekemediysek hata çıktısını veriyoruz
+        }
+    }
+
+    public void processJsonData(string _url)
+    {
+        jsonDataClass jsnData = JsonUtility.FromJson<jsonDataClass>(_url); // Çektiğimiz JSON dosyasını oluşturduğumuz jsonDataClass veri tipine çeviriyoruz.
+        
+        foreach (sorularClass x in jsnData.feeds){ // JSON verisindeki Sorular dizisini çekmek için kullanıyoruz.
+            Debug.Log(x.field1 + "\n");
+            degerler.Add(x.field1);
+            tarih.Add(x.created_at+" - "+x.field1);
+        }
+        tikla();
+    }
+
+    public void tikla()
+    {
+        sayi=degerler.Count;
+        Destroy(uyarılar);
+        uyarılar = new GameObject("uyarılar");
+        {
+            uyarılar.active = false;
+            uyarılar.transform.parent = this.uyarılarr.transform;
+            uyarılar.AddComponent<VerticalLayoutGroup>();
+            uyarılar_rt=uyarılar.GetComponent<RectTransform>();
+            uyarılar_rt.sizeDelta = new Vector2(1150*erkan, 840*erkan);
+            uyarılar_rt.localPosition = new Vector3(-190*erkan, -50*erkan, 0);
+        }
+        for(int y=0;y<sayi;y++)
+        {
+            yereltarih = int.Parse(tarih[y].Substring(11,2));
+            yereltarih+=3;
+            endIndex = tarih[y].Length;
+            endIndex -= 20;
+            if(yereltarih<10)
+            {
+                tarih[y]=tarih[y].Substring(0,10) + " - 0" + yereltarih + tarih[y].Substring(13,6) +tarih[y].Substring(20,endIndex);
+            }
+            else
+            {
+                tarih[y]=tarih[y].Substring(0,10) + " - " + yereltarih + tarih[y].Substring(13,6) + tarih[y].Substring(20,endIndex);
+            }
+        }
+        Vector3 spawnkonum = new Vector3();
+        Vector3 spawnkonum2 = new Vector3();
+        Vector3 spawnkonum3 = new Vector3();
+        spawnkonum3.x = -6.45f;
+        spawnkonum3.y = -0.9f;
+        Destroy(parcalar);
+        spawnkonum.z = 1;
+        parcalar = new GameObject("parcalar");
+        x = -7;
+        yollarx = -6.5f;
+        for(int i=0;i<sayi;i++)
+        {
+            if(degerler[i]<79 || degerler[i]>96)
+            {
+                if(degerler[i]<79)
+                {
+                    uyarıyazi.text="DÜŞÜK NEM !! ";
+                    uyarıyazi.color= new Color(0F, 230F, 255F);
+                }
+                if(degerler[i]>96)
+                {
+                    uyarıyazi.text="YÜKSEK NEM !! ";
+                    uyarıyazi.color= new Color(255F, 0F, 0F);
+                }
+                uyarıyazi.text = (""+uyarıyazi.text+degerler[i]+""+" NEM // "+""+tarih[i].Substring(0,21)+"");
+                Instantiate(uyarıyazi, spawnkonum, Quaternion.Euler(0, 0, 0), uyarılar.transform);
+            }
+            if(i>0)
+            {
+                spawnkonum2.x=yollarx;
+                spawnkonum2.y = ((degerler[i]-85.9f)*0.19f+(degerler[i-1]-85.9f)*0.19f)/2;
+                hipotenüs=(degerler[i-1]-85.9f)*0.19f-(degerler[i]-85.9f)*0.19f;
+                hipotenüs=hipotenüs*hipotenüs;
+                hipotenüs=Mathf.Sqrt(hipotenüs+1);
+                sinüs=((degerler[i-1]-85.9f)*0.19f-(degerler[i]-85.9f)*0.19f)/hipotenüs;
+                yol.transform.localScale = new Vector3(hipotenüs, 0.05f, 1);
+                derece=-Mathf.Asin(sinüs)*57.2957795131f;
+                Instantiate(yol, spawnkonum2, Quaternion.Euler(0, 0, derece), parcalar.transform);
+                yollarx=yollarx+1;
+            }
+            spawnkonum.x = x;
+            spawnkonum.y = (degerler[i]-85.9f)*0.19f;
+            Instantiate(circle, spawnkonum, Quaternion.identity, parcalar.transform);
+            tarihyazi.text=""+tarih[i]+"";
+            Instantiate(tarihyazi, spawnkonum3, Quaternion.Euler(0, 0, 90), tarihler.transform);
+            spawnkonum3.x=spawnkonum3.x+(1);
+            x=x+1;
+        }
+        parcalar.transform.position = new Vector3(0,1,0);
+        if(sayi>18)
+        {
+            referans = -(sayi - 9);
+            parcalar.transform.position = new Vector3(referans, 0, 0);
+            referans2=referans;
+        }
+        referans = 0;
+    }
+    
+    public void sola()
+    {
+        if(sayi>0)
+        {
+            tarihler.transform.position = tarihler.transform.position - new Vector3(0.5f, 0, 0);
+            parcalar.transform.position = parcalar.transform.position - new Vector3(0.5f, 0, 0);
+        }
+    }
+    public void saga()
+    {
+        if(sayi>0)
+        {
+            tarihler.transform.position = tarihler.transform.position + new Vector3(0.5f, 0, 0);
+            parcalar.transform.position = parcalar.transform.position + new Vector3(0.5f, 0, 0);
+        }
+    }
+    public void yukari()
+    {
+        if(sayi>0)
+        {
+            parcalar.transform.position = parcalar.transform.position - new Vector3(0, 0.5f, 0);
+            sayilar.transform.position = sayilar.transform.position - new Vector3(0, 50*erkan, 0);
+        }
+    }
+    public void asagi()
+    {
+        if(sayi>0)
+        {
+            parcalar.transform.position = parcalar.transform.position + new Vector3(0, 0.5f, 0);
+            sayilar.transform.position = sayilar.transform.position + new Vector3(0, 50*erkan, 0);
+        }
+    }
+    public void uyari()
+    {
+        if(liste.active == true)
+        {
+            uyarilistesi.active= false;
+            liste.active = false;
+            uyarılar.active = true;
+        }
+        else if(liste.active == false)
+        {
+            uyarilistesi.active= true;
+            liste.active = true;
+            uyarılar.active = false;
+        }
+    }
+    public void sicaklik()
+    {
+        SceneManager.LoadScene(0, LoadSceneMode.Single);
+    }
+    public void ayarlar()
+    {
+        if(liste.active == true)
+        {
+            liste.active = uyarilarim.active = false;
+            kaydetcanvas.active = true;
+        }
+        else
+        {
+            liste.active = uyarilarim.active = true;
+            kaydetcanvas.active = false;
+        }
+    }
+    public void erisim()
+    {
+        File.WriteAllText(path, ""+ nemadresigiris.text +"");
+        SceneManager.LoadScene(1, LoadSceneMode.Single);
+    }
+    
+}
